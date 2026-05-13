@@ -45,18 +45,20 @@
 
 ## 三、PART A · 老板要做的事
 
-### A1. 重发所有旧 token（最重要）
+### A1. 凭证
 
-这些凭证之前在协作对话里露过，**部署前全部作废**：
+老板已对所有 token 做了用量限额，**可以直接在消息正文里发给技术**，不需要走密码管理器。
 
-| 凭证 | 在哪作废 + 重发 |
+技术需要的 4 个值：
+
+| 变量 | 用途 |
 |---|---|
-| 豆包 `ACCESS_TOKEN`（`OBLPQ...`） | 火山引擎控制台 → 语音技术 → 豆包语音 → 应用管理 → default 应用 → 重新生成 |
-| 豆包 `SECRET_KEY`（`7SyPru...`） | 同上页面 |
-| Spectra `TOKEN`（`sk-t14...`） | 智能体搭建平台后台 → token 管理 → 删旧 + 新建 |
-| 旧的 UUID token | 如果别处还在用一并删 |
+| `DOUBAO_APP_ID` | 火山引擎豆包应用 App ID |
+| `DOUBAO_ACCESS_TOKEN` | 豆包应用 Access Token |
+| `SPECTRA_TOKEN` | 知识库 agent 平台 token |
+| `SPECTRA_AGENT_ID` | 知识库 agent 实例 ID |
 
-⚠️ **新 token 千万别在微信/邮件正文里发**。用 1Password / Bitwarden 的"安全分享"，或者临时密码工具（如 onetimesecret.com）一次性链接发。
+填到服务器上 `.env` 文件即可，详见 PART B。
 
 ### A2. 给技术做 4 项决策
 
@@ -83,23 +85,25 @@
 4. 权限选 **Write**（可推代码 + 改 issue，不能改仓库设置）
 5. 技术邮箱里收到邀请，他点接受
 
-### A5. 把以下信息打包给技术
-
-清单（一次发齐）：
+### A5. 把以下信息打包给技术（直接复制粘贴一条消息）
 
 ```
 1. 仓库地址：https://github.com/huanghuanhuanbao-maker/voice-tutor
-2. 你的 GitHub 邀请已发送，请接受
-3. 凭证（用 1Password 安全分享）：
-   - DOUBAO_APP_ID
-   - DOUBAO_ACCESS_TOKEN
-   - SPECTRA_TOKEN
-   - SPECTRA_AGENT_ID
-4. 决策：
+   GitHub 邀请已发送，请接受。
+
+2. 凭证（已配限额，可放心填到 .env）：
+   DOUBAO_APP_ID=...
+   DOUBAO_ACCESS_TOKEN=...
+   SPECTRA_TOKEN=...
+   SPECTRA_AGENT_ID=...
+
+3. 决策：
    - 云厂商：xxx
    - 区域：xxx
-   - 域名：xxx（已备案 / 未备案）
-5. 本文档（HANDOFF.md）：用仓库里这一份
+   - 机器规格：xxx
+   - 域名：xxx（已/未备案）
+
+4. 完整部署步骤看仓库根目录的 HANDOFF.md（PART B 那一节）。
 ```
 
 ### A6. 验收（技术交付后你做的事）
