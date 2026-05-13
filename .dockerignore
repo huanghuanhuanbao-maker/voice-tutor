@@ -1,0 +1,11 @@
+.env
+.env.*
+node_modules/
+.git/
+.gitignore
+*.log
+.DS_Store
+_ref-volcengine-audio/
+test-*.mjs
+HANDOFF.md
+README.md
