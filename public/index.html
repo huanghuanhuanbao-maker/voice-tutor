@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>长风 · AI 课程语音助教</title>
+<style>
+  :root {
+    --bg-start    : #faf6ef;
+    --bg-end      : #f0e3cf;
+    --text        : #2c2722;
+    --text-soft   : #7a6e60;
+    --accent      : #c47a3d;
+    --accent-soft : #ecd6b5;
+    --bubble-user : #ffffff;
+    --bubble-bot  : #fff5e3;
+    --shadow-soft : 0 4px 24px rgba(115, 78, 38, 0.08);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  .app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 140px;
+  }
+
+  /* Sticky topbar - 光球+状态始终可见 */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(250, 246, 239, 0.86);
+    backdrop-filter: blur(16px) saturate(120%);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    border-bottom: 1px solid rgba(196, 122, 61, 0.08);
+    box-shadow: 0 6px 24px rgba(196, 122, 61, 0.05);
+    padding: 14px 20px 16px;
+  }
+  .topbar-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+  }
+  header .brand {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--text-soft);
+    text-transform: uppercase;
+  }
+  header h1 {
+    margin: 4px 0 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 1px;
+  }
+
+  /* Orb stage */
+  .stage {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin: 0;
+  }
+  .orb {
+    width: 64px;
+    height: 64px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 32%,
+                  #fff6e3 0%,
+                  #f1c994 35%,
+                  #c47a3d 100%);
+    box-shadow:
+      0 0 0 1px rgba(196, 122, 61, 0.08),
+      0 0 60px rgba(196, 122, 61, 0.28),
+      inset -6px -6px 30px rgba(120, 60, 18, 0.18),
+      inset 6px 6px 30px rgba(255, 240, 200, 0.4);
+    transition: box-shadow 0.5s, transform 0.5s;
+    animation: breathe 4s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1);    opacity: 0.92; }
+    50%      { transform: scale(1.03); opacity: 1;    }
+  }
+
+  .orb.listening {
+    animation: listen 0.9s ease-in-out infinite;
+    box-shadow:
+      0 0 0 1px rgba(196, 122, 61, 0.15),
+      0 0 80px rgba(196, 122, 61, 0.45),
+      inset -6px -6px 30px rgba(120, 60, 18, 0.18),
+      inset 6px 6px 30px rgba(255, 240, 200, 0.5);
+  }
+  @keyframes listen {
+    0%, 100% { transform: scale(1);    }
+    50%      { transform: scale(1.08); }
+  }
+
+  .orb.thinking {
+    animation: think 2.5s linear infinite;
+    background: conic-gradient(from 0deg,
+                  #f1c994 0%,
+                  #fff6e3 25%,
+                  #c47a3d 50%,
+                  #fff6e3 75%,
+                  #f1c994 100%);
+  }
+  @keyframes think {
+    100% { transform: rotate(360deg); }
+  }
+
+  .orb.speaking {
+    animation: speak 0.35s ease-in-out infinite alternate;
+    box-shadow:
+      0 0 0 1px rgba(196, 122, 61, 0.2),
+      0 0 90px rgba(196, 122, 61, 0.55),
+      inset -6px -6px 30px rgba(120, 60, 18, 0.18),
+      inset 6px 6px 30px rgba(255, 240, 200, 0.5);
+  }
+  @keyframes speak {
+    0%   { transform: scale(0.98); }
+    100% { transform: scale(1.04); }
+  }
+
+  .hint {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    min-height: 22px;
+    text-align: left;
+    transition: opacity 0.3s;
+    flex: 0 1 auto;
+  }
+  .hint .dot {
+    display: inline-block;
+    width: 4px; height: 4px;
+    background: var(--text-soft);
+    border-radius: 50%;
+    margin: 0 1px;
+    animation: dotbounce 1.2s ease-in-out infinite;
+  }
+  .hint .dot:nth-child(2) { animation-delay: 0.2s; }
+  .hint .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotbounce {
+    0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+    40%           { opacity: 1;   transform: translateY(-3px); }
+  }
+
+  /* Transcript */
+  .transcript {
+    width: 100%;
+    max-width: 720px;
+    margin: 24px auto 0;
+    padding: 0 20px;
+    min-height: 320px;
+  }
+  .bubble {
+    margin: 14px 0;
+    padding: 16px 22px;
+    border-radius: 20px;
+    line-height: 1.75;
+    font-size: 16px;
+    box-shadow: var(--shadow-soft);
+    animation: slideIn 0.4s ease-out;
+    word-break: break-word;
+  }
+  .bubble.live {
+    opacity: 0.7;
+    border: 1px dashed rgba(196, 122, 61, 0.35);
+  }
+  /* "已打断" 提示：浏览器拿到 interrupt 消息时短暂闪一下，给用户视觉确认 */
+  @keyframes orbFlash {
+    0%   { box-shadow: 0 0 0 1px rgba(196,122,61,0.15), 0 0 80px rgba(196,122,61,0.45); }
+    50%  { box-shadow: 0 0 0 4px rgba(196,122,61,0.4),  0 0 120px rgba(196,122,61,0.7); }
+    100% { box-shadow: 0 0 0 1px rgba(196,122,61,0.15), 0 0 80px rgba(196,122,61,0.45); }
+  }
+  .orb.flash { animation: orbFlash 0.4s ease-out; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .bubble.user {
+    background: var(--bubble-user);
+    max-width: 85%;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+    color: var(--text);
+  }
+  .bubble.bot {
+    background: var(--bubble-bot);
+    border-bottom-left-radius: 4px;
+    border: 1px solid rgba(196, 122, 61, 0.12);
+  }
+  .bubble.bot strong {
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .bubble.bot em {
+    font-style: italic;
+  }
+  .bubble.bot br + br { display: none; }
+
+  /* Floating control button */
+  .control {
+    position: fixed;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+  }
+  .control button {
+    padding: 14px 44px;
+    font-size: 16px;
+    font-weight: 500;
+    border: none;
+    border-radius: 100px;
+    cursor: pointer;
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 6px 18px rgba(196, 122, 61, 0.35);
+    transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+    letter-spacing: 2px;
+  }
+  .control button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(196, 122, 61, 0.4);
+  }
+  .control button:active { transform: translateY(0); }
+  .control button.end {
+    background: #8a7e6f;
+    box-shadow: 0 6px 18px rgba(80, 70, 60, 0.25);
+  }
+
+  /* Soft toast for errors */
+  .toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(50, 30, 15, 0.88);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Empty-state helper */
+  .empty {
+    color: var(--text-soft);
+    text-align: center;
+    margin: 40px 0;
+    font-size: 14px;
+    opacity: 0.6;
+  }
+
+  @media (max-width: 480px) {
+    .orb { width: 140px; height: 140px; }
+    header h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <header>
+        <div class="brand">长风AI课程</div>
+        <h1>语音助教</h1>
+      </header>
+      <div class="stage">
+        <div class="orb" id="orb"></div>
+        <div class="hint" id="hint">点下方按钮，开始和我对话</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="transcript" id="transcript">
+    <div class="empty" id="empty">提一个问题，比如"AI 沟通有什么方法？"</div>
+  </div>
+</div>
+
+<div class="control">
+  <button id="btn">开始对话</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $orb        = document.getElementById('orb');
+const $hint       = document.getElementById('hint');
+const $transcript = document.getElementById('transcript');
+const $empty      = document.getElementById('empty');
+const $btn        = document.getElementById('btn');
+const $toast      = document.getElementById('toast');
+
+let ws, audioCtx, micNode, mediaStream, player;
+let currentBotBubble  = null;
+let liveUserBubble    = null;   // 用户说话过程中的实时识别气泡
+let thinkingBubble    = null;
+let toastTimer        = null;
+
+// ──────────────── UI helpers ────────────────
+function setState(state, hintText) {
+  $orb.className = 'orb' + (state ? ' ' + state : '');
+  if (typeof hintText === 'string') {
+    if (state === 'thinking') {
+      $hint.innerHTML = hintText + ' <span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+    } else {
+      $hint.textContent = hintText;
+    }
+  }
+}
+function showToast(msg) {
+  $toast.textContent = msg;
+  $toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $toast.classList.remove('show'), 3500);
+}
+// 用户的"实时识别"气泡：边说边出文字。final=true 时定型，否则保持 live 态。
+function updateUserBubble(text, isFinal) {
+  if (!text) return;
+  if ($empty && $empty.parentNode) $empty.remove();
+  if (!liveUserBubble) {
+    liveUserBubble = document.createElement('div');
+    liveUserBubble.className = 'bubble user live';
+    $transcript.appendChild(liveUserBubble);
+  }
+  liveUserBubble.textContent = text;
+  if (isFinal) {
+    liveUserBubble.classList.remove('live');
+    liveUserBubble = null;
+  }
+  scrollDown();
+}
+// 把 Spectra 返回的 markdown / 引用编号渲染成漂亮的 HTML
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+function renderMessage(text) {
+  let html = escapeHtml(text);
+  // 去掉知识库引用编号：[3]、[9][10]、[4 12] 等
+  html = html.replace(/\[\d+(?:\s+\d+)*\]/g, '');
+  // 去掉 markdown 标题标记 (## 一、xxx → 一、xxx)
+  html = html.replace(/^#{1,6}\s+/gm, '');
+  // 行首 "- " 或 "* " 列表标记 → 圆点
+  html = html.replace(/^\s*[-]\s+/gm, '· ');
+  // **粗体** → <strong>
+  html = html.replace(/\*\*([^\*\n]+?)\*\*/g, '<strong>$1</strong>');
+  // 单个 *斜体* → <em>（避开已处理过的 **）
+  html = html.replace(/(^|[^\*])\*([^\*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  // 残留的孤立星号清掉
+  html = html.replace(/\*+/g, '');
+  // 换行
+  html = html.replace(/\n+/g, '<br>');
+  // 收掉连续多余空格
+  html = html.replace(/ {2,}/g, ' ').trim();
+  return html;
+}
+
+function startBotBubble() {
+  if ($empty) { $empty.remove(); }
+  currentBotBubble = document.createElement('div');
+  currentBotBubble.className = 'bubble bot';
+  currentBotBubble.dataset.raw = '';
+  $transcript.appendChild(currentBotBubble);
+  scrollDown();
+}
+function appendBotText(text) {
+  if (!currentBotBubble) startBotBubble();
+  currentBotBubble.dataset.raw = (currentBotBubble.dataset.raw || '') + text;
+  currentBotBubble.innerHTML = renderMessage(currentBotBubble.dataset.raw);
+  scrollDown();
+}
+// thinking 状态只通过光球+顶部 hint 体现，不再放进对话气泡区
+function clearThinkingBubble() { /* no-op kept for backwards compat */ }
+function scrollDown() {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+// ──────────────── PCM Player (PCM16 24k) ────────────────
+class PcmPlayer {
+  constructor(sampleRate = 24000) {
+    this.ctx = new AudioContext({ sampleRate });
+    this.nextStart = this.ctx.currentTime;
+    this.activeSources = new Set();
+    this.hasPlayedSomething = false;     // 标记是否真的播过音频
+    this.onIdle = null;                  // 队列彻底播空时回调
+  }
+  push(buf) {
+    const int16 = new Int16Array(buf);
+    const f32   = new Float32Array(int16.length);
+    for (let i = 0; i < int16.length; i++) f32[i] = int16[i] / 32768;
+    const ab  = this.ctx.createBuffer(1, f32.length, this.ctx.sampleRate);
+    ab.copyToChannel(f32, 0);
+    const src = this.ctx.createBufferSource();
+    src.buffer = ab;
+    src.connect(this.ctx.destination);
+    const t = Math.max(this.ctx.currentTime, this.nextStart);
+    src.start(t);
+    this.nextStart = t + ab.duration;
+    this.hasPlayedSomething = true;
+    this.activeSources.add(src);
+    src.onended = () => {
+      this.activeSources.delete(src);
+      // 队列彻底空了（一段答案播完）→ 通知主流程
+      if (this.activeSources.size === 0 && this.hasPlayedSomething && this.onIdle) {
+        this.hasPlayedSomething = false;
+        this.onIdle();
+      }
+    };
+  }
+  interrupt() {
+    for (const src of this.activeSources) {
+      try { src.stop(); } catch {}
+    }
+    this.activeSources.clear();
+    this.nextStart = this.ctx.currentTime;
+    this.hasPlayedSomething = false;   // 打断后不再触发 onIdle
+  }
+  async close() {
+    this.interrupt();
+    try { await this.ctx.close(); } catch {}
+  }
+}
+
+// ──────────────── Main flow ────────────────
+async function start() {
+  $btn.disabled = true;
+  setState('thinking', '正在连接');
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+    });
+  } catch (e) {
+    setState(null, '需要允许麦克风权限');
+    showToast('需要允许麦克风权限才能使用语音助教');
+    $btn.disabled = false;
+    return;
+  }
+
+  audioCtx = new AudioContext();
+  await audioCtx.audioWorklet.addModule('/audio-worklet.js');
+  const source = audioCtx.createMediaStreamSource(mediaStream);
+  micNode = new AudioWorkletNode(audioCtx, 'mic-pcm-processor');
+  source.connect(micNode);
+
+  player = new PcmPlayer(24000);
+  // 一段答案彻底播完了 → 状态切回 listening，引导继续追问
+  player.onIdle = () => {
+    if ($orb.classList.contains('speaking')) {
+      setState('listening', '可以继续问我');
+      currentBotBubble = null;
+    }
+  };
+
+  const wsUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws';
+  ws = new WebSocket(wsUrl);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = () => {
+    micNode.port.onmessage = e => {
+      if (ws.readyState === WebSocket.OPEN) ws.send(e.data);
+    };
+    $btn.textContent = '结束对话';
+    $btn.classList.add('end');
+    $btn.disabled = false;
+  };
+
+  ws.onmessage = ev => {
+    if (typeof ev.data === 'string') {
+      let msg; try { msg = JSON.parse(ev.data); } catch { return; }
+      handleServerMessage(msg);
+    } else {
+      player.push(ev.data);
+    }
+  };
+
+  ws.onclose = () => { setState(null, '已结束'); cleanup(); };
+  ws.onerror = () => { showToast('连接出了点问题，重试一下试试'); };
+}
+
+function handleServerMessage(msg) {
+  switch (msg.type) {
+    case 'status':
+      // 多数 status 来自后端的中间态，对 C 端隐藏；只用于第一次连接的提示
+      break;
+
+    case 'ready':
+      setState('listening', '我在听，你可以说话了');
+      break;
+
+    case 'asr-start':
+      setState('listening', '我在听…');
+      clearThinkingBubble();
+      currentBotBubble = null;   // 新一轮提问，下一次 chat 会创建新气泡
+      break;
+
+    case 'asr':
+      // 用户说话过程中：实时显示识别中的文字，final 时定型
+      updateUserBubble(msg.text, msg.final);
+      break;
+
+    case 'asr-end':
+      // 说完话的瞬间
+      setState('thinking', '让我想想');
+      break;
+
+    case 'rag-start':
+      setState('thinking', '正在翻课程笔记');
+      break;
+
+    case 'rag-done':
+      setState('thinking', '马上讲给你听');
+      break;
+
+    case 'chat':
+      setState('speaking', '');
+      $hint.textContent = '';
+      appendBotText(msg.text);
+      break;
+
+    case 'chat-end':
+      currentBotBubble = null;
+      setState('listening', '可以继续问我');
+      break;
+
+    case 'interrupt':
+      player?.interrupt();
+      currentBotBubble = null;
+      // 视觉确认：让光球闪一下
+      $orb.classList.add('flash');
+      setTimeout(() => $orb.classList.remove('flash'), 400);
+      setState('listening', '我在听…');
+      break;
+
+    case 'error':
+      // 不暴露错误码；统一用一句友好语
+      showToast('遇到点小问题，稍后再试一下');
+      console.error('[server-error]', msg.message);
+      break;
+  }
+}
+
+function cleanup() {
+  try { ws?.close(); }       catch {}
+  try { mediaStream?.getTracks().forEach(t => t.stop()); } catch {}
+  try { micNode?.disconnect(); } catch {}
+  try { audioCtx?.close(); } catch {}
+  try { player?.close(); }   catch {}
+  $btn.textContent = '开始对话';
+  $btn.classList.remove('end');
+  $btn.disabled = false;
+  setState(null, '点下方按钮，开始和我对话');
+  currentBotBubble = null;
+  liveUserBubble   = null;
+  clearThinkingBubble();
+}
+
+$btn.onclick = () => {
+  if ($btn.classList.contains('end')) {
+    try { ws?.send(JSON.stringify({ type: 'finish' })); } catch {}
+    cleanup();
+  } else {
+    start();
+  }
+};
+</script>
+
+</body>
+</html>

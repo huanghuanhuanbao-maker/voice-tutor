@@ -1,0 +1,22 @@
+# 凭证 - 绝对不能提交
+.env
+.env.local
+.env.*.local
+
+# 依赖
+node_modules/
+
+# 参考代码 (开发期 clone 的别人项目，不属于本项目)
+_ref-volcengine-audio/
+
+# 调试 / 临时
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 测试脚本 (本地用，不需要发布)
+test-spectra.mjs
+test-protocol.mjs
+test-doubao-connect.mjs

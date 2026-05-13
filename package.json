@@ -1,0 +1,14 @@
+{
+  "name": "voice-tutor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.20.0"
+  }
+}
